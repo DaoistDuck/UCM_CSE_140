@@ -20,7 +20,11 @@ char subu[] = "subu";
 
 char mult[] = "mult";
 char multu[] = "multu";
+<<<<<<< HEAD
 char div2[] = "div";
+=======
+char div1[] = "div";
+>>>>>>> 9242892baa40d444e94472dcb3859eeeb3eb60c8
 char divu[] = "divu";
 char sra[] = "sra";
 char mfhi[] = "mfhi";
@@ -78,7 +82,7 @@ char rd[3];
 printf("Enter in a R-format instruction without the $: ");
 scanf("%s %[^,\n], %[^,\n], %[^,\n]" , opcode, rs, rt, rd );
 
-if(!(strcmp(opcode, sll)) || !(strcmp(opcode, srl))){
+if(!(strcmp(opcode, sll)) || !(strcmp(opcode, srl)) || !(strcmp(opcode, sra))){
     checkShiftInstructionSet(opcode, rs, rt, rd);
 }
 
@@ -289,7 +293,11 @@ void checkInstructionSet(char opcode[], char rd[], char rs[], char rt[]){
         printf("Funct: 23\n");
         functValue = 23;
     }
+<<<<<<< HEAD
     if(!(strcmp(opcode, div2))){
+=======
+    if(!(strcmp(opcode, div1))){
+>>>>>>> 9242892baa40d444e94472dcb3859eeeb3eb60c8
         printf("Operation: div\n");
         checkRs(rs);
         checkRt(rt);
