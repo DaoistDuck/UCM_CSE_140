@@ -20,7 +20,7 @@ char subu[] = "subu";
 
 char mult[] = "mult";
 char multu[] = "multu";
-char div[] = "div";
+char div2[] = "div";
 char divu[] = "divu";
 char sra[] = "sra";
 char mfhi[] = "mfhi";
@@ -289,7 +289,7 @@ void checkInstructionSet(char opcode[], char rd[], char rs[], char rt[]){
         printf("Funct: 23\n");
         functValue = 23;
     }
-    if(!(strcmp(opcode, div))){
+    if(!(strcmp(opcode, div2))){
         printf("Operation: div\n");
         checkRs(rs);
         checkRt(rt);
