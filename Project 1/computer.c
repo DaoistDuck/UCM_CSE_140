@@ -199,21 +199,16 @@ void Decode ( unsigned int instr, DecodedInstr* d, RegVals* rVals) {
             break;
         }
     }
-
-     //hex to decimal part now
+    
     int base = 1;
     int decimalValue = 0;
     
-    ///*
     for(int i = 0; i < counter ; i ++){
         if(hexValue[i] >= 0 && hexValue[i] <= 9){
             decimalValue += hexValue[i]*base;
             base = base * 16;
         } 
     }
-    //*/
-
-    printf("\n");
 
     int binaryValue[32];
     int place = 0;
@@ -607,8 +602,5 @@ void RegWrite( DecodedInstr* d, int val, int *changedReg) {
     } else if(d->type == I){
         mips.registers[d->regs.i.rt] = val;
         *changedReg = d->regs.i.rt;
-    }
-
-    
-
+    }  
 }
