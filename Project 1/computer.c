@@ -235,7 +235,6 @@ void Decode ( unsigned int instr, DecodedInstr* d, RegVals* rVals) {
         }
         base2 *= 2;
     }
-    printf("\nopcode: %d\n", opcodeCheck);
     
     int rsValue = 0, rtValue = 0, rdValue = 0, shamtValue = 0, immedValue = 0, targetValue = 0, functValue = 0;
 
