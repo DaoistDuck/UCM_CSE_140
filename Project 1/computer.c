@@ -448,29 +448,40 @@ int Execute ( DecodedInstr* d, RegVals* rVals) {
     switch(d->op){
         case 0:
             switch(d->regs.r.funct){
+                //sll
                 case 0:
                     return rVals->R_rt << d->regs.r.shamt;
+                //srl
                 case 2:
                     return rVals->R_rt >> d->regs.r.shamt;
+                //jr
                 case 8:
                     return rVals->R_rs;
+                //addu
                 case 33:
                     return rVals->R_rs + rVals->R_rt;
+                //subu
                 case 35:
                     return rVals->R_rs - rVals->R_rt;
+                //and
                 case 36:
                     return rVals->R_rs & rVals->R_rt;
+                //or
                 case 37:
                     return rVals->R_rs | rVals->R_rt;
+                //slt
                 case 38:
                     return (rVals->R_rs - rVals->R_rt) > 0;
             }
             break;
         case 2:
+        //j
             break;
         case 3:
+        //jal
             return mips.pc + 4;
             break;
+        //beq
         case 4:
             if(rVals->R_rs - rVals->R_rt == 0){
                 return d->regs.i.addr_or_immed << 2;
@@ -479,6 +490,7 @@ int Execute ( DecodedInstr* d, RegVals* rVals) {
                 return 0;
                 break;
             }
+        //bne
         case 5:
             if(rVals->R_rs - rVals->R_rt == 0){
                 return 0;
@@ -487,22 +499,27 @@ int Execute ( DecodedInstr* d, RegVals* rVals) {
                 return d->regs.i.addr_or_immed << 2;
                 break;
             }
-
+        //addiu
         case 9:
             return rVals->R_rs + d->regs.i.addr_or_immed;
             break;
+        //andi
         case 12:
             return rVals->R_rs & d->regs.i.addr_or_immed;
             break;
+        //ori
         case 13:
             return rVals->R_rs | d->regs.i.addr_or_immed;
             break;
+        //lui
         case 15:
             return d->regs.i.addr_or_immed << 16;
             break;
+        //lw
         case 35:
             return rVals->R_rs + d->regs.i.addr_or_immed;
             break;
+        //sw
         case 43:
             return rVals->R_rs + d->regs.i.addr_or_immed;
             break;
