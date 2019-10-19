@@ -199,7 +199,7 @@ void Decode ( unsigned int instr, DecodedInstr* d, RegVals* rVals) {
             break;
         }
     }
-    
+
     int base = 1;
     int decimalValue = 0;
     
@@ -347,7 +347,7 @@ void Decode ( unsigned int instr, DecodedInstr* d, RegVals* rVals) {
 void PrintInstruction ( DecodedInstr* d) {
     /* Your code goes here */
     char* instr = " ";
-    int supportedInstruction = 0;
+    int supportedInstruction = 1;
     switch(d->op){
     case 0:
        switch(d->regs.r.funct){
