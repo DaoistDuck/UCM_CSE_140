@@ -178,36 +178,32 @@ unsigned int Fetch ( int addr) {
     return mips.memory[(addr-0x00400000)/4];
 }
 
-int getRegisterValue(unsigned int instr, int y, int x){
+int getRegisterValue(unsigned int instr, int y, int x, DecodedInstr* d){
     int mask = ((1 << x) - 1) << y;
     int registerValue = 0; 
     registerValue = instr & mask;
-    registerValue = registerValue >> y;
-
+    if((d->type) == J){
+        registerValue = registerValue << 2;
+    }else{
+        registerValue = registerValue >> y;
+    }    
     return registerValue;
-}
-
-int getTargetAddress(unsigned int instr, int y, int x){
-    int mask = ((1 << x) - 1) << y;
-    int registerValue = 0; 
-    registerValue = instr & mask;
-    registerValue = registerValue << 2;
-    
-    return registerValue;
-
 }
 
 int checkNegImmed(unsigned int immedValue){
 
     int negMask = 1 << 14;
-    int negValue = immedValue;
+    int mask = ((1 << 15) - 1) << 0;
+    int registerValue = immedValue; 
+    int negValue = 0;
 
     if((immedValue & negMask) > 0){
         negValue = (~immedValue) + 1;
-        negValue = negValue >> 15;
+        registerValue = negValue & mask;
+        return -registerValue;
+    }else{
+        return registerValue;
     }
-    
-    return negValue;
 
 }
 
@@ -232,22 +228,22 @@ void Decode ( unsigned int instr, DecodedInstr* d, RegVals* rVals) {
 
     if(d->op == 0){
         d->type = R;
-        d->regs.r.rs = getRegisterValue(instr, rsLocation, registerLength);
-        d->regs.r.rt = getRegisterValue(instr, rtLocation, registerLength);
-        d->regs.r.rd = getRegisterValue(instr, rdLocation, registerLength);
-        d->regs.r.shamt = getRegisterValue(instr, shamtLocation, registerLength);
-        d->regs.r.funct = getRegisterValue(instr, functLocation, functLength);
+        d->regs.r.rs = getRegisterValue(instr, rsLocation, registerLength, d);
+        d->regs.r.rt = getRegisterValue(instr, rtLocation, registerLength, d);
+        d->regs.r.rd = getRegisterValue(instr, rdLocation, registerLength, d);
+        d->regs.r.shamt = getRegisterValue(instr, shamtLocation, registerLength, d);
+        d->regs.r.funct = getRegisterValue(instr, functLocation, functLength, d);
         rVals->R_rd = mips.registers[d->regs.r.rd];
         rVals->R_rt = mips.registers[d->regs.r.rt];
         rVals->R_rs = mips.registers[d->regs.r.rs];
     } else if(d->op == 2 || d->op == 3){
         d->type = J;
-        d->regs.j.target = getTargetAddress(instr, addressLocation, addressLength);
+        d->regs.j.target = getRegisterValue(instr, addressLocation, addressLength, d);
     } else{
         d->type = I;
-        d->regs.i.rs = getRegisterValue(instr, rsLocation, registerLength);
-        d->regs.i.rt = getRegisterValue(instr, rtLocation, registerLength);
-        d->regs.i.addr_or_immed = checkNegImmed(getRegisterValue(instr, immedLocation, immedLength));
+        d->regs.i.rs = getRegisterValue(instr, rsLocation, registerLength, d);
+        d->regs.i.rt = getRegisterValue(instr, rtLocation, registerLength, d);
+        d->regs.i.addr_or_immed = checkNegImmed(getRegisterValue(instr, immedLocation, immedLength, d));
         rVals->R_rt = mips.registers[d->regs.i.rt];
         rVals->R_rs = mips.registers[d->regs.i.rs];
     }
@@ -328,13 +324,12 @@ void PrintInstruction ( DecodedInstr* d) {
     }
 
     if(supportedInstruction == 0){
-        printf("\nThis instruction you have provided is not supported. This program will now terminate.\n");
         exit(0);
     }
     if(d->type == R){
         if(d->op == 2){
             printf("%s\t$%d, $%d, %d\n", instr, d->regs.r.rd, d->regs.r.rs, d->regs.r.shamt);
-        } else if(d->op == 8){
+        }else if(d->op == 8){
             printf("%s\t$%d,\n", instr,d->regs.r.rs);
         }else{
             printf("%s\t$%d, $%d, $%d\n", instr, d->regs.r.rd,d->regs.r.rs,d->regs.r.rt);
@@ -477,7 +472,7 @@ int Mem( DecodedInstr* d, int val, int *changedMem) {
     /* Your code goes here */
 
     *changedMem = -1;
-    int newAddr;
+    int newAddr = 0;
     if(d->op == 43){
         if(val < 0x00400000 || val > 0x00410000 || val % 4 != 0){
             printf("Memory Access Expection at 0x%08x: address 0x%08x\n",mips.pc-4, val);
@@ -493,8 +488,8 @@ int Mem( DecodedInstr* d, int val, int *changedMem) {
             exit(0);
         }
         mips.registers[d->regs.i.rt] = Fetch(val);
-        *changedMem = -1;
         val = mips.registers[d->regs.i.rt];
+        *changedMem = -1;
     }
   return val;
 }
@@ -510,8 +505,8 @@ void RegWrite( DecodedInstr* d, int val, int *changedReg) {
 
     *changedReg = -1;
     if(d->op == 0){
-        if(d->regs.r.funct == 8 || d->regs.r.rd == 0){
-            
+        if(d->regs.r.funct == 8){
+            //cuz its already empty
         }
         mips.registers[d->regs.r.rd] = val;
         *changedReg = d->regs.r.rd;
@@ -520,9 +515,9 @@ void RegWrite( DecodedInstr* d, int val, int *changedReg) {
         mips.registers[31] = val;
         *changedReg = 31;
     }
-    else if(d->op == 9 || d->op == 12 || d->op == 13 || d->op == 15 || d->op == 35){
+    else if(d->op == 9 || d->op == 12 || d->op == 13 || d->op == 15 || d->op == 43){
         if(d->regs.r.rt == 0){
-            
+            // cuz its already empty
         }
         mips.registers[d->regs.i.rt] = val;
         *changedReg = d->regs.i.rt;      

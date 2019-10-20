@@ -35,12 +35,16 @@ int getRegisterValues(unsigned int instr, int x, int y){
 int checkNegImmed(unsigned int immedValue){
 
     int negMask = 1 << 14;
+    int mask = ((1 << 15) - 1) << 0;
+    int registerValue = 0; 
     int negValue;
 
     if((immedValue & negMask) > 0){
         negValue = (~immedValue) + 1;
-    }
-    negValue = negValue >> 15;
-    return negValue;
+        registerValue = negValue & mask;
+        registerValue = registerValue >> 0;
+    }      
+    
+    return -registerValue;
 
 }
