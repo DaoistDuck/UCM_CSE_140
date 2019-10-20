@@ -178,168 +178,80 @@ unsigned int Fetch ( int addr) {
     return mips.memory[(addr-0x00400000)/4];
 }
 
-/* Decode instr, returning decoded instruction. */
-void Decode ( unsigned int instr, DecodedInstr* d, RegVals* rVals) {
-    /* Your code goes here */
+int getRegisterValue(unsigned int instr, int y, int x){
+    int mask = ((1 << x) - 1) << y;
+    int registerValue = 0; 
+    registerValue = instr & mask;
+    registerValue = registerValue >> y;
 
-    int hexValue[32];
-    int counter = 0;
-    while(counter < 8){
-        while(instr > 0){
-            hexValue[counter] = instr % 10;
-            instr /= 10;
-            counter++;
-        }
-        if(counter > 6){
-            if(hexValue[counter] == 0){
-            hexValue[counter] = 0;
-            }
-            counter++;
-        } else{
-            break;
-        }
-    }
+    return registerValue;
+}
 
-    int base = 1;
-    int decimalValue = 0;
+int getTargetAddress(unsigned int instr, int y, int x){
+    int mask = ((1 << x) - 1) << y;
+    int registerValue = 0; 
+    registerValue = instr & mask;
+    registerValue = registerValue << 2;
     
-    for(int i = 0; i < counter ; i ++){
-        if(hexValue[i] >= 0 && hexValue[i] <= 9){
-            decimalValue += hexValue[i]*base;
-            base = base * 16;
-        } 
-    }
-
-    int binaryValue[32];
-    int place = 0;
-    for(place = 0; place < 32; place++){
-        binaryValue[place] = decimalValue % 2;
-        decimalValue = decimalValue / 2; 
-        if(binaryValue[place] == 0){
-            binaryValue[place] = 0;
-        }
-    }
-
-    // opcode check
-    int opcodeCheck = 0;
-    int base2 = 1;
-    for(int m = 26;m < 32;m++){
-        printf("%d", binaryValue[m]);
-        if(binaryValue[m] == 1){
-            opcodeCheck += base2;
-        }
-        base2 *= 2;
-    }
-    
-    int rsValue = 0, rtValue = 0, rdValue = 0, shamtValue = 0, immedValue = 0, targetValue = 0, functValue = 0;
-
-    if(opcodeCheck == 0){
-        // r format
-        d->type = R;
-        base2 = 1;
-        for(int m = 21;m < 26;m++){
-            printf("%d", binaryValue[m]);
-            if(binaryValue[m] == 1){
-                rdValue += base2;
-            }
-            base2 *= 2;
-        }
-        d->regs.r.rd = rdValue;
-
-        base2 = 1;
-        for(int n = 16;n < 21;n++){
-            printf("%d", binaryValue[n]);
-            if(binaryValue[n] == 1){
-                rsValue += base2;
-            }
-            base2 *= 2;
-        }
-        d->regs.r.rs = rsValue;
-
-        base2 = 1;
-        for(int n = 11; n < 16; n++){
-            printf("%d", binaryValue[n]);
-            if(binaryValue[n] == 1){
-                rtValue += base2;
-            }
-            base2 *= 2;
-        }
-        d->regs.r.rt = rtValue;
-
-        base2 = 1;
-        for(int n = 6; n < 11; n++){
-            printf("%d", binaryValue[n]);
-            if(binaryValue[n] == 1){
-                shamtValue += base2;
-            }
-            base2 *= 2;
-        }
-        d->regs.r.shamt = shamtValue;
-
-        base2 = 1;
-        for(int n = 0; n < 6; n++){
-            printf("%d", binaryValue[n]);
-            if(binaryValue[n] == 1){
-                functValue += base2;
-            }
-            base2 *= 2;
-        }
-        d->regs.r.funct = functValue;
-        
-    }else if(opcodeCheck == 2 || opcodeCheck == 3){
-        // j format
-        d->type = J;
-        base2 = 1;
-        for(int m = 0;m < 26;m++){
-        printf("%d", binaryValue[m]);
-        if(binaryValue[m] == 1){
-            targetValue += base2;
-        }
-        base2 *= 2;
-    }
-    d->regs.j.target = targetValue;
-
-    }else{
-        //i format
-        d->type = I;
-        int base2 = 1;
-        for(int m = 21; m < 26; m++){
-            printf("%d", binaryValue[m]);
-            if(binaryValue[m] == 1){
-                rsValue += base2;
-            }
-            base2 *= 2;
-        }
-        d->regs.i.rs = rsValue;
-
-        base2 = 1;
-        for(int n = 16; n < 21; n++){
-            printf("%d", binaryValue[n]);
-            if(binaryValue[n] == 1){
-                rtValue += base2;
-            }
-            base2 *= 2;
-        }
-        d->regs.i.rt = rtValue;
-
-        base2 = 1;
-        for(int n = 0;n < 16;n++){
-            printf("%d", binaryValue[n]);
-            if(binaryValue[n] == 1){
-                immedValue += base2;
-            }
-            base2 *= 2;
-        }
-
-        d->regs.i.addr_or_immed = immedValue;
-    }
-
-    rVals->R_rs = mips.registers[rsValue];
-    rVals->R_rt = mips.registers[rtValue];
-    rVals->R_rd = mips.registers[rdValue];
+    return registerValue;
 
 }
 
+int checkNegImmed(unsigned int immedValue){
+
+    int negMask = 1 << 14;
+    int negValue = immedValue;
+
+    if((immedValue & negMask) > 0){
+        negValue = (~immedValue) + 1;
+        negValue = negValue >> 15;
+    }
+    
+    return negValue;
+
+}
+
+/* Decode instr, returning decoded instruction. */
+void Decode ( unsigned int instr, DecodedInstr* d, RegVals* rVals) {
+    /* Your code goes here */   
+
+    int rsLocation = 21;
+    int rtLocation = 16;
+    int rdLocation = 11;
+    int shamtLocation = 6;
+    int functLocation = 0;
+    int immedLocation = 0;
+    int addressLocation = 0;
+
+    int registerLength = 5;
+    int functLength = 6;     
+    int immedLength = 15;
+    int addressLength = 25;
+
+    d->op = instr >> 26;    
+
+    if(d->op == 0){
+        d->type = R;
+        d->regs.r.rs = getRegisterValue(instr, rsLocation, registerLength);
+        d->regs.r.rt = getRegisterValue(instr, rtLocation, registerLength);
+        d->regs.r.rd = getRegisterValue(instr, rdLocation, registerLength);
+        d->regs.r.shamt = getRegisterValue(instr, shamtLocation, registerLength);
+        d->regs.r.funct = getRegisterValue(instr, functLocation, functLength);
+        rVals->R_rd = mips.registers[d->regs.r.rd];
+        rVals->R_rt = mips.registers[d->regs.r.rt];
+        rVals->R_rs = mips.registers[d->regs.r.rs];
+    } else if(d->op == 2 || d->op == 3){
+        d->type = J;
+        d->regs.j.target = getTargetAddress(instr, addressLocation, addressLength);
+    } else{
+        d->type = I;
+        d->regs.i.rs = getRegisterValue(instr, rsLocation, registerLength);
+        d->regs.i.rt = getRegisterValue(instr, rtLocation, registerLength);
+        d->regs.i.addr_or_immed = checkNegImmed(getRegisterValue(instr, immedLocation, immedLength));
+        rVals->R_rt = mips.registers[d->regs.i.rt];
+        rVals->R_rs = mips.registers[d->regs.i.rs];
+    }
+}
 /*
  *  Print the disassembled version of the given instruction
  *  followed by a newline.
@@ -416,20 +328,28 @@ void PrintInstruction ( DecodedInstr* d) {
     }
 
     if(supportedInstruction == 0){
-        printf("This instruction you have provided is not supported. This program will now terminate.\n");
+        printf("\nThis instruction you have provided is not supported. This program will now terminate.\n");
         exit(0);
     }
     if(d->type == R){
-        printf("%s\t$%d, $%d, $%d\n", instr, d->regs.r.rd,d->regs.r.rs,d->regs.r.rt);
+        if(d->op == 2){
+            printf("%s\t$%d, $%d, %d\n", instr, d->regs.r.rd, d->regs.r.rs, d->regs.r.shamt);
+        } else if(d->op == 8){
+            printf("%s\t$%d,\n", instr,d->regs.r.rs);
+        }else{
+            printf("%s\t$%d, $%d, $%d\n", instr, d->regs.r.rd,d->regs.r.rs,d->regs.r.rt);
+        }        
     }else if(d->type == J){
         printf("%s\t0x%08x\n", instr, d->regs.j.target);
     }else if(d->type == I){
-        if(d->op == 4 || d->op == 5){
+        if(d->op == 43 || d->op == 35){
             printf("%s \t$%d, %d($%d)\n", instr, d->regs.i.rt, d->regs.i.addr_or_immed, d->regs.i.rs);
-        } else if(d->op == 12 || d->op == 13 || d->op == 15){
+        } else if(d->op == 15){
+            printf("%s\t$%d, 0x%x\n", instr, d->regs.i.rt, d->regs.i.addr_or_immed);
+        } else if(d->op == 12 || d->op == 13){
             printf("%s \t$%d, $%d, 0x%x\n", instr, d->regs.i.rt, d->regs.i.rs, d->regs.i.addr_or_immed);
-        } else if(d->op == 35 || d->op == 43){
-            printf("%s \t$%d, $%d, 0x%08x\n", instr, d->regs.i.rt, d->regs.i.rs, d->regs.i.addr_or_immed);
+        } else if(d->op == 4 || d->op == 5){
+            printf("%s \t$%d, $%d, 0x%08x\n", instr, d->regs.i.rs, d->regs.i.rt, (mips.pc + 4 + (d->regs.i.addr_or_immed << 2)));
         } else {
             printf("%s \t$%d, $%d, %d\n", instr, d->regs.i.rt, d->regs.i.rs, d->regs.i.addr_or_immed);
         }
@@ -478,7 +398,7 @@ int Execute ( DecodedInstr* d, RegVals* rVals) {
             break;
         //beq
         case 4:
-            if(rVals->R_rs - rVals->R_rt == 0){
+            if((rVals->R_rs - rVals->R_rt) == 0){
                 return d->regs.i.addr_or_immed << 2;
                 break;
             } else {
@@ -530,7 +450,7 @@ int Execute ( DecodedInstr* d, RegVals* rVals) {
 void UpdatePC ( DecodedInstr* d, int val) {
     
     /* Your code goes here */
-
+    mips.pc += 4;
     if(d->op == 0){
         if(d->regs.r.funct == 8){
             mips.pc = val;
@@ -538,9 +458,7 @@ void UpdatePC ( DecodedInstr* d, int val) {
     }else if(d->op == 2 || d->op == 3){
         mips.pc = d->regs.j.target;
     }else if(d->op == 4 || d->op == 5){
-        mips.pc = val;
-    }else{
-        mips.pc += 4;
+        mips.pc += val;
     }
     
 }
@@ -560,7 +478,7 @@ int Mem( DecodedInstr* d, int val, int *changedMem) {
 
     *changedMem = -1;
     int newAddr;
-    if(d->op == 35){
+    if(d->op == 43){
         if(val < 0x00400000 || val > 0x00410000 || val % 4 != 0){
             printf("Memory Access Expection at 0x%08x: address 0x%08x\n",mips.pc-4, val);
             exit(0);
@@ -569,7 +487,7 @@ int Mem( DecodedInstr* d, int val, int *changedMem) {
         mips.memory[newAddr] = mips.registers[d->regs.i.rt];
         *changedMem = val;
         
-    } else if(d->op == 43){
+    } else if(d->op == 35){
         if(val < 0x00400000 || val > 0x00410000 || val % 4 != 0){
             printf("Memory Access Expection at 0x%08x: address 0x%08x\n",mips.pc-4, val);
             exit(0);
@@ -591,16 +509,22 @@ void RegWrite( DecodedInstr* d, int val, int *changedReg) {
     /* Your code goes here */
 
     *changedReg = -1;
-    if(d->type == R){
-        if(d->op == 3){
-            mips.registers[31] = val;
-            *changedReg = 31;
-        }else{
-            mips.registers[d->regs.r.rd] = val;
-            *changedReg = d->regs.r.rd;
-        }        
-    } else if(d->type == I){
+    if(d->op == 0){
+        if(d->regs.r.funct == 8 || d->regs.r.rd == 0){
+            
+        }
+        mips.registers[d->regs.r.rd] = val;
+        *changedReg = d->regs.r.rd;
+               
+    }else if(d->op == 3){
+        mips.registers[31] = val;
+        *changedReg = 31;
+    }
+    else if(d->op == 9 || d->op == 12 || d->op == 13 || d->op == 15 || d->op == 35){
+        if(d->regs.r.rt == 0){
+            
+        }
         mips.registers[d->regs.i.rt] = val;
-        *changedReg = d->regs.i.rt;
-    }  
+        *changedReg = d->regs.i.rt;      
+    }
 }

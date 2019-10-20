@@ -3,17 +3,13 @@
 
 int main(){
 
-    unsigned int mips = 2484ffff;
+    unsigned int instr = 24040003;
 
-    int opcode, temp, instr;
+    int opcode, rs, rt, rd, shamt, funct,immed,target;
 
-    opcode = mips >> 26;
+    
 
-    temp = mips << 6;
-    temp = temp >> 27;
-    instr = temp;
-
-    printf("%d\n", instr);
+    
     
     
 
