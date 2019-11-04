@@ -327,9 +327,9 @@ void PrintInstruction ( DecodedInstr* d) {
         exit(0);
     }
     if(d->type == R){
-        if(d->op == 2){
+        if(d->regs.r.funct == 2){
             printf("%s\t$%d, $%d, %d\n", instr, d->regs.r.rd, d->regs.r.rs, d->regs.r.shamt);
-        }else if(d->op == 8){
+        }else if(d->regs.r.funct == 8){
             printf("%s\t$%d,\n", instr,d->regs.r.rs);
         }else{
             printf("%s\t$%d, $%d, $%d\n", instr, d->regs.r.rd,d->regs.r.rs,d->regs.r.rt);
@@ -474,7 +474,7 @@ int Mem( DecodedInstr* d, int val, int *changedMem) {
     *changedMem = -1;
     int newAddr = 0;
     if(d->op == 43){
-        if(val < 0x00400000 || val > 0x00410000 || val % 4 != 0){
+        if(val < 0x00400000 || val > 0x00410000){
             printf("Memory Access Expection at 0x%08x: address 0x%08x\n",mips.pc-4, val);
             exit(0);
         }
@@ -483,7 +483,7 @@ int Mem( DecodedInstr* d, int val, int *changedMem) {
         *changedMem = val;
         
     } else if(d->op == 35){
-        if(val < 0x00400000 || val > 0x00410000 || val % 4 != 0){
+        if(val < 0x00400000 || val > 0x00410000){
             printf("Memory Access Expection at 0x%08x: address 0x%08x\n",mips.pc-4, val);
             exit(0);
         }
@@ -506,7 +506,7 @@ void RegWrite( DecodedInstr* d, int val, int *changedReg) {
     *changedReg = -1;
     if(d->op == 0){
         if(d->regs.r.funct == 8){
-            //cuz its already empty
+            //address
         }
         mips.registers[d->regs.r.rd] = val;
         *changedReg = d->regs.r.rd;
