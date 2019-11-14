@@ -78,21 +78,12 @@ void init_lru(int assoc_index, int block_index)
               if we == WRITE, then data used to
               update Cache/DRAM
 */
-
-int getCacheValue(address, addr, int y, int x){
-    int mask = ((1 << x) - 1) << y;
-    int cacheValue = 0; 
-    cacheValue = addr & mask;
-    cacheValue = cacheValue >> y;
-    
-    return cacheValue;
-}
-
 void accessMemory(address addr, word* data, WriteEnable we)
 {
   /* Declare variables here */
-  unsigned int tagValue, tagLength, indexValue, indexLength, offsetValue, offsetLength;
-  int indexLocation, offsetLocation = 0;
+  unsigned int tagValue, tagLength, indexValue, indexLength, offsetValue, offsetLength, offsetMask, indexMask;
+  unsigned int hit, byteAmount, blockAccessed = 0, maxValue = 0;
+  address saveAddr = 0;
 
   /* handle the case of no cache at all - leave this in */
   if(assoc == 0) {
@@ -129,36 +120,142 @@ void accessMemory(address addr, word* data, WriteEnable we)
 
   /* Start adding code here */
   offsetLength = uint_log2(block_size);
-  indexLength = uint_log2(set_count); 
-  indexLocation = offsetLength + 1;
-  tagLength = 32 - indexLength - offsetLength;
-  tagLocation = indexLength + offsetLength + 1;
-  
-  offsetValue = getCacheValue(addr, offsetLocation,offsetLength);
-  indexValue = getCacheValue(addr, indexLocation, indexLength);
-  tagValue = getCacheValue(addr, tagLocation, tagLength);
+  indexLength = uint_log2(set_count);   
+  tagLength = 32 - (indexLength + offsetLength);
+  byteAmount = uint_log2(block_size);
 
-  if(block_size == 4){
-    byte_size = 2;
-  }else if(block_size == 8){
-    byte_size = 3;
-  }else if(block_size == 16){
-    byte_size = 4;
-  }else if(block_size == 32){
-    byte_size = 5;
-  }else{
-    //don't know what happens if it comes to here
-  }
+  offsetMask = ((1 << offsetLength) - 1);
+  indexMask = ((1 << indexLength) - 1);
   
+  offsetValue = addr & offsetMask;
+  indexValue = (addr >> offsetLength) & indexMask;
+  tagValue = addr >> (offsetLength + indexLength); 
+
+  if(we == READ){
+    hit = 0;
+    for(int i = 0; i < assoc; i++){
+      if(cache[indexValue].block[i].tag == tagValue && cache[indexValue].block[i].valid == 1){
+        cache[indexValue].block[i].lru.value = 0;
+        hit = 1;
+        highlight_offset(indexValue, blockAccessed, offsetValue, HIT);
+        memcpy(data, cache[indexValue].block[i].data + offsetValue, byteAmount);
+      }
+    }
+    if(!hit){
+      if(policy == LRU){
+        for(int i = 0; i < assoc; i++){
+          if(cache[indexValue].block[i].lru.value > maxValue){
+            blockAccessed = i;
+            maxValue = cache[indexValue].block[i].lru.value;
+          }
+        }
+      }else if(policy == RANDOM){
+        blockAccessed = randomint(assoc);
+      }
+
+      highlight_block(indexValue, blockAccessed); 
+      highlight_offset(indexValue, blockAccessed, offsetValue, MISS);
+
+      if(cache[indexValue].block[blockAccessed].dirty == DIRTY){
+        saveAddr = (cache[indexValue].block[blockAccessed].tag << (offsetLength + indexLength)) | (indexValue << offsetLength);
+        accessDRAM(saveAddr, (byte*)cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);
+      }
+
+      accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, READ);
+
+      cache[indexValue].block[blockAccessed].tag = tagValue;
+      cache[indexValue].block[blockAccessed].valid = VALID;
+      cache[indexValue].block[blockAccessed].lru.value = 0;
+      cache[indexValue].block[blockAccessed].dirty = VIRGIN;
+
+      memcpy(data, cache[indexValue].block[blockAccessed].data + offsetValue, byteAmount);
+
+      }
+    }else{//write
+      hit = 0;
+      if(memory_sync_policy == WRITE_THROUGH){
+        for(int i = 0; i < assoc; i++){
+          if(cache[indexValue].block[i].tag == tagValue && cache[indexValue].block[i].valid == 1){
+            memcpy(cache[indexValue].block[i].data + offsetValue, data, byteAmount);
+            cache[indexValue].block[i].lru.value = 0;
+            cache[indexValue].block[blockAccessed].dirty = VIRGIN;
+            hit = 1;
+            highlight_offset(indexValue, blockAccessed, offsetValue, HIT);
+            accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);
+          
+        }
+      }
+      if(!hit){
+        if(policy == LRU){
+          for(int i = 0; i < assoc; i++){
+            if(cache[indexValue].block[i].lru.value > maxValue){
+              blockAccessed = i;
+              maxValue = cache[indexValue].block[i].lru.value;
+            }
+          }
+        }else if(policy == RANDOM){
+          blockAccessed = randomint(assoc);
+        }
+
+        highlight_block(indexValue, blockAccessed); 
+        highlight_offset(indexValue, blockAccessed, offsetValue, MISS);
+      
+
+        accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, READ);
+
+        cache[indexValue].block[blockAccessed].tag = tagValue;
+        cache[indexValue].block[blockAccessed].valid = VALID;
+        cache[indexValue].block[blockAccessed].lru.value = 0;
+        cache[indexValue].block[blockAccessed].dirty = VIRGIN;
+        memcpy(cache[indexValue].block[blockAccessed].data + offsetValue, data, byteAmount);
+
+      }
+    }else{//writeback
+      hit = 0;
+      for(int i = 0; i < assoc; i++){
+        if(cache[indexValue].block[i].tag == tagValue && cache[indexValue].block[i].valid == 1){
+          memcpy(cache[indexValue].block[i].data + offsetValue, data, byteAmount);
+          cache[indexValue].block[i].lru.value = 0;
+          cache[indexValue].block[blockAccessed].dirty = DIRTY;
+          hit = 1;
+          highlight_offset(indexValue, blockAccessed, offsetValue, HIT);
+          accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);            
+        }
+      }
+      if(!hit){
+        if(policy == LRU){
+          for(int i = 0; i < assoc; i++){
+            if(cache[indexValue].block[i].lru.value > maxValue){
+              blockAccessed = i;
+              maxValue = cache[indexValue].block[i].lru.value;
+            }
+          }
+        }else if(policy == RANDOM){
+          blockAccessed = randomint(assoc);
+        }
+
+        highlight_block(indexValue, blockAccessed); 
+        highlight_offset(indexValue, blockAccessed, offsetValue, MISS);  
+
+        if(cache[indexValue].block[blockAccessed].dirty == DIRTY){
+          saveAddr = (cache[indexValue].block[blockAccessed].tag << (offsetLength + indexLength)) | (indexValue << offsetLength);
+          accessDRAM(saveAddr, (byte*)cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);
+        }        
+
+        cache[indexValue].block[blockAccessed].tag = tagValue;
+        cache[indexValue].block[blockAccessed].valid = VALID;
+        cache[indexValue].block[blockAccessed].lru.value = 0;
+        cache[indexValue].block[blockAccessed].dirty = VIRGIN;
+
+        accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, READ);
+        memcpy(cache[indexValue].block[blockAccessed].data + offsetValue, data, byteAmount);
+
+      }
+    }
+  }
   if(policy == LRU){
-    
-  }
-
-
-  /* This call to accessDRAM occurs when you modify any of the
-     cache parameters. It is provided as a stop gap solution.
-     At some point, ONCE YOU HAVE MORE OF YOUR CACHELOGIC IN PLACE,
-     THIS LINE SHOULD BE REMOVED.
-  */
-  accessDRAM(addr, (byte*)data, WORD_SIZE, we);
-}
+    for(int i = 0; i < assoc; i ++){
+      cache[indexValue].block[i].lru.value++;
+    }
+  }  
+}    
