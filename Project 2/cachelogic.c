@@ -129,11 +129,15 @@ void accessMemory(address addr, word* data, WriteEnable we)
   
   offsetValue = addr & offsetMask;
   indexValue = (addr >> offsetLength) & indexMask;
-  tagValue = addr >> (offsetLength + indexLength); 
+  tagValue = addr >> (offsetLength + indexLength);   
 
+  
   if(we == READ){
     hit = 0;
     for(int i = 0; i < assoc; i++){
+      if(policy == LRU){
+        cache[indexValue].block[i].lru.value++;
+      }
       if(cache[indexValue].block[i].tag == tagValue && cache[indexValue].block[i].valid == 1){
         cache[indexValue].block[i].lru.value = 0;
         hit = 1;
@@ -173,55 +177,24 @@ void accessMemory(address addr, word* data, WriteEnable we)
       }
     }else{//write
       hit = 0;
-      if(memory_sync_policy == WRITE_THROUGH){
-        for(int i = 0; i < assoc; i++){
-          if(cache[indexValue].block[i].tag == tagValue && cache[indexValue].block[i].valid == 1){
-            memcpy(cache[indexValue].block[i].data + offsetValue, data, byteAmount);
-            cache[indexValue].block[i].lru.value = 0;
-            cache[indexValue].block[blockAccessed].dirty = VIRGIN;
-            hit = 1;
-            highlight_offset(indexValue, blockAccessed, offsetValue, HIT);
-            accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);
-          
-        }
-      }
-      if(!hit){
-        if(policy == LRU){
-          for(int i = 0; i < assoc; i++){
-            if(cache[indexValue].block[i].lru.value > maxValue){
-              blockAccessed = i;
-              maxValue = cache[indexValue].block[i].lru.value;
-            }
-          }
-        }else if(policy == RANDOM){
-          blockAccessed = randomint(assoc);
-        }
-
-        highlight_block(indexValue, blockAccessed); 
-        highlight_offset(indexValue, blockAccessed, offsetValue, MISS);
-      
-
-        accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, READ);
-
-        cache[indexValue].block[blockAccessed].tag = tagValue;
-        cache[indexValue].block[blockAccessed].valid = VALID;
-        cache[indexValue].block[blockAccessed].lru.value = 0;
-        cache[indexValue].block[blockAccessed].dirty = VIRGIN;
-        memcpy(cache[indexValue].block[blockAccessed].data + offsetValue, data, byteAmount);
-
-      }
-    }else{//writeback
-      hit = 0;
       for(int i = 0; i < assoc; i++){
+        if(policy == LRU){
+          cache[indexValue].block[i].lru.value++;
+        }
         if(cache[indexValue].block[i].tag == tagValue && cache[indexValue].block[i].valid == 1){
           memcpy(cache[indexValue].block[i].data + offsetValue, data, byteAmount);
           cache[indexValue].block[i].lru.value = 0;
-          cache[indexValue].block[blockAccessed].dirty = DIRTY;
+          if(memory_sync_policy == WRITE_THROUGH){
+            cache[indexValue].block[blockAccessed].dirty = VIRGIN;
+          }else{
+            cache[indexValue].block[blockAccessed].dirty = DIRTY;         
+          }  
+          
           hit = 1;
           highlight_offset(indexValue, blockAccessed, offsetValue, HIT);
-          accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);            
+          accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);  
         }
-      }
+      }        
       if(!hit){
         if(policy == LRU){
           for(int i = 0; i < assoc; i++){
@@ -233,29 +206,23 @@ void accessMemory(address addr, word* data, WriteEnable we)
         }else if(policy == RANDOM){
           blockAccessed = randomint(assoc);
         }
-
         highlight_block(indexValue, blockAccessed); 
-        highlight_offset(indexValue, blockAccessed, offsetValue, MISS);  
+        highlight_offset(indexValue, blockAccessed, offsetValue, MISS);
 
-        if(cache[indexValue].block[blockAccessed].dirty == DIRTY){
-          saveAddr = (cache[indexValue].block[blockAccessed].tag << (offsetLength + indexLength)) | (indexValue << offsetLength);
-          accessDRAM(saveAddr, (byte*)cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);
-        }        
+        if(memory_sync_policy == WRITE_BACK){
+          if(cache[indexValue].block[blockAccessed].dirty == DIRTY){
+            saveAddr = (cache[indexValue].block[blockAccessed].tag << (offsetLength + indexLength)) | (indexValue << offsetLength);
+            accessDRAM(saveAddr, (byte*)cache[indexValue].block[blockAccessed].data, byteAmount, WRITE);
+          }  
+        }  
+
+        accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, READ);          
+        memcpy(cache[indexValue].block[blockAccessed].data + offsetValue, data, byteAmount);
 
         cache[indexValue].block[blockAccessed].tag = tagValue;
         cache[indexValue].block[blockAccessed].valid = VALID;
         cache[indexValue].block[blockAccessed].lru.value = 0;
-        cache[indexValue].block[blockAccessed].dirty = VIRGIN;
-
-        accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, READ);
-        memcpy(cache[indexValue].block[blockAccessed].data + offsetValue, data, byteAmount);
-
+        cache[indexValue].block[blockAccessed].dirty = VIRGIN;       
       }
     }
   }
-  if(policy == LRU){
-    for(int i = 0; i < assoc; i ++){
-      cache[indexValue].block[i].lru.value++;
-    }
-  }  
-}    
