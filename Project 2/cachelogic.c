@@ -186,5 +186,6 @@ void accessMemory(address addr, word* data, WriteEnable we)
     accessDRAM(addr, cache[indexValue].block[blockAccessed].data, byteAmount, READ);
     cache[indexValue].block[blockAccessed].tag = tagValue;
     cache[indexValue].block[blockAccessed].valid = VALID;
+    cache[indexValue].block[blockAccessed].lru.value = 0;
   }
 }
