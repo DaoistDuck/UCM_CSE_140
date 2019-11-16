@@ -81,7 +81,7 @@ void init_lru(int assoc_index, int block_index)
 void accessMemory(address addr, word* data, WriteEnable we)
 {
   /* Declare variables here */
-  unsigned int tagValue, tagLength, indexValue, indexLength, offsetValue, offsetLength, offsetMask, indexMask;
+  unsigned int tagValue, indexValue, indexLength, offsetValue, offsetLength, offsetMask, indexMask;
   unsigned int hit, byteAmount, blockAccessed = 0, maxValue = 0;
   address saveAddr = 0;
 
@@ -121,7 +121,6 @@ void accessMemory(address addr, word* data, WriteEnable we)
   /* Start adding code here */
   offsetLength = uint_log2(block_size);
   indexLength = uint_log2(set_count);   
-  tagLength = 32 - (indexLength + offsetLength);
   byteAmount = uint_log2(block_size);
 
   offsetMask = ((1 << offsetLength) - 1);
