@@ -1,5 +1,5 @@
 
-//reordering https://cs61.seas.harvard.edu/wiki/images/0/0f/Lec14-Cache_measurement.pdf
+//reordering 
 void dgemm( int m, int n, float *A, float *C )
 {
     for( int k = 0; k < m; k++ ){
@@ -11,7 +11,7 @@ void dgemm( int m, int n, float *A, float *C )
     }       
 }
 
-//loop unrolling with duff's device https://riptutorial.com/c/example/28504/loop-unrolling-and-duff-s-device
+//loop unrolling with duff's device 
 void dgemm( int m, int n, float *A, float *C )
 {
     for( int i = 0; i < m; i++ ){
@@ -56,17 +56,4 @@ void dgemm( int m, int n, float *A, float *C )
         }            
     }       
 }
-
-// SEE instructions
-void dgemm( int m, int n, float *A, float *C )
-{
-  for( int i = 0; i < m; i++ )
-    for( int k = 0; k < n; k++ ) 
-      for( int j = 0; j < m; j++ ) 
-	C[i+j*m] += A[i+k*m] * A[j+k*m];
-    
-    
-
-}
-
 
