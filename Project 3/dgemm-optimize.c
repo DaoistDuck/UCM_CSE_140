@@ -1,4 +1,4 @@
-///*
+/*
 //reordering 
 void dgemm( int m, int n, float *A, float *C )
 {
@@ -10,7 +10,7 @@ void dgemm( int m, int n, float *A, float *C )
         }            
     }       
 }
-//*/
+*/
 /*
 //loop unrolling
 void dgemm( int m, int n, float *A, float *C )
@@ -45,7 +45,7 @@ void dgemm( int m, int n, float *A, float *C )
     }  
 }       
 */
-/*
+///*
 //blocking/tiling
 void dgemm( int m, int n, float *A, float *C )
 {
@@ -67,4 +67,4 @@ void dgemm( int m, int n, float *A, float *C )
         }            
     }       
 }
-*/
+//*/
