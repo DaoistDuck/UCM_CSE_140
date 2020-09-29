@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <netinet/in.h>
+//#include <netinet/in.h>
 #include "computer.h"
 #undef mips			/* gcc already has a def for mips */
 
